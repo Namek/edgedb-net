@@ -144,7 +144,7 @@ public class ConnectionTests
     [TestMethod]
     public void DSNRequiresEdgeDBSchema() =>
         ExpectError<ConfigurationException>(ParseConnection("pq:///dbname?host=/unix_sock/test&user=spam"),
-            "DSN schema 'edgedb' expected but got 'pq'");
+            "DSN schema 'gel' expected but got 'pq'");
 
     [TestMethod]
     public void DSNQueryParameterWithUnixSocket() =>
@@ -156,7 +156,7 @@ public class ConnectionTests
     {
         var connection = EdgeDBConnection.FromDSN("edgedb://user3:123123@localhost:5555/abcdef");
 
-        Assert.AreEqual("edgedb://user3:123123@localhost:5555/abcdef", connection.ToString());
+        Assert.AreEqual("gel://user3:123123@localhost:5555/abcdef", connection.ToString());
     }
 
     private static void Expect(Result result, EdgeDBConnection expected)
