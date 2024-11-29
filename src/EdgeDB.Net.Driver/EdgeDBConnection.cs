@@ -66,7 +66,7 @@ public sealed class EdgeDBConnection
     /// <inheritdoc />
     public override string ToString()
     {
-        var str = "edgedb://";
+        var str = "gel://";
 
         if (Username is not null)
             str += Username;
@@ -269,8 +269,8 @@ public sealed class EdgeDBConnection
     /// <exception cref="KeyNotFoundException">An environment variable couldn't be found.</exception>
     public static EdgeDBConnection FromDSN(string dsn)
     {
-        if (!dsn.StartsWith("edgedb://"))
-            throw new ConfigurationException("DSN schema 'edgedb' expected but got 'pq'");
+        if (!dsn.StartsWith("edgedb://") && !dsn.StartsWith("gel://"))
+            throw new ConfigurationException("DSN schema 'gel' expected but got 'pq'");
 
         string? database = null, username = null, port = null, host = null, password = null;
 
@@ -644,7 +644,7 @@ public sealed class EdgeDBConnection
 
         // try to resolve the toml, don't do this for cloud-like conn params.
         if (autoResolve && !((instance is not null && instance.Contains('/')) ||
-                             (dsn is not null && !dsn.StartsWith("edgedb://"))))
+                             (dsn is not null && !dsn.StartsWith("edgedb://") && !dsn.StartsWith("gel://"))))
         {
             try
             {
