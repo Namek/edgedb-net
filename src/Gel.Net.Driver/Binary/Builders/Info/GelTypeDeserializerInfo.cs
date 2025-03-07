@@ -1,6 +1,7 @@
 using Gel.Binary.Builders.Wrappers;
 using Gel.DataTypes;
 using System.Diagnostics;
+using System.Dynamic;
 using System.Linq.Expressions;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -274,7 +275,7 @@ internal sealed class GelTypeDeserializeInfo
             return (ref ObjectEnumerator enumerator) =>
             {
                 // introspect the type name
-                if (!enumerator.Next(out var name, out var value) || name != "__tname__")
+                if (!enumerator.Next(out var name, out var value) && !(name is "__tname" or "__tname__"))
                     throw new ConfigurationException(
                         "Type introspection is required for abstract types, this is a bug.");
 
@@ -307,6 +308,55 @@ internal sealed class GelTypeDeserializeInfo
             {
                 if (!PropertyMapInfo.Map.TryGetValue(name, out var prop))
                     continue;
+
+                // This is a workaround for deserializing abstract type to actual type rather than leave it as ExpandoObject.
+                // Database doesn't return the type name and cannot use the one we have explicitly asked for (__tname).
+                if (value is ExpandoObject && TypeBuilder.TypeInfo.TryGetValue(prop.PropertyInfo.PropertyType, out var type) && type.IsAbtractType)
+                {
+                    var dict = (IDictionary<string, object>)value;
+                    object? newValue;
+
+                    if (type.IsAbtractType)
+                    {
+                        if ((!dict.TryGetValue("__tname", out var tname) &&
+                             !dict.TryGetValue("__tname__", out tname)) || tname is not string)
+                        {
+                            throw new ConfigurationException(
+                                "Type introspection is required for abstract types, this is a bug.");
+                        }
+                        var typeName = ((string)tname).Split("::").Last();
+
+                        GelTypeDeserializeInfo? info;
+                        if ((info = type.Children.FirstOrDefault(x => x.Value.GelTypeName == typeName).Value) is null)
+                        {
+                            throw new GelException(
+                                $"Failed to deserialize the gel type '{typeName}'. Could not find relevant child of {type.GelTypeName}");
+                        }
+
+                        newValue = info.Activator?.Invoke();
+                        type = info;
+                    }
+                    else
+                    {
+                        newValue = type.Activator?.Invoke();
+                    }
+
+                    if (newValue is null)
+                        throw new TargetInvocationException($"Cannot create an instance of {type.GelTypeName}", null);
+
+                    foreach (var (propName, propValue) in dict)
+                    {
+                        if (propName == "__tname" || propName == "__tname__")
+                            continue;
+
+                        if (!type.PropertyMapInfo.Map.TryGetValue(propName, out var childProp))
+                            continue;
+
+                        childProp.ConvertAndSetValue(newValue, propValue);
+                    }
+
+                    value = newValue;
+                }
 
                 prop.ConvertAndSetValue(instance, value);
             }
