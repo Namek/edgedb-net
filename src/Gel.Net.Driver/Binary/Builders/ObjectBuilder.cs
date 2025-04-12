@@ -4,6 +4,7 @@ using Gel.Utils;
 using Microsoft.Extensions.Logging;
 using System.Collections;
 using System.Collections.Concurrent;
+using System.Dynamic;
 using System.Reflection;
 
 namespace Gel;
@@ -95,8 +96,26 @@ internal sealed class ObjectBuilder
         }
 
         // check for edgeql types
-        //if (TypeBuilder.IsValidObjectType(type) && value is IDictionary<string, object?> dict)
-        //    return TypeBuilder.BuildObject(type, dict);
+        // if (TypeBuilder.IsValidObjectType(type) && value is IDictionary<string, object?> dict)
+        //return TypeBuilder.BuildObject(type, dict);
+
+        if (value is ExpandoObject obj && TypeBuilder.TypeInfo.TryGetValue(type, out var info))
+        {
+            var newValue = info.Activator?.Invoke();
+
+            if (newValue != null)
+            {
+                foreach (var (propName, propValue) in obj)
+                {
+                    if (!info.PropertyMapInfo.Map.TryGetValue(propName, out var childProp))
+                        continue;
+
+                    childProp.ConvertAndSetValue(newValue, propValue);
+                }
+            }
+
+            return newValue;
+        }
 
         // check for tuple
         if (value is TransientTuple tuple && type.GetInterface("ITuple") != null)

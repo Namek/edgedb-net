@@ -87,7 +87,7 @@ internal sealed class GelTypeDeserializeInfo
             ? ctorInfo
             : null;
 
-    private ObjectActivator? Activator
+    internal ObjectActivator? Activator
         => _typeActivator ??= CreateActivator();
 
     private ObjectActivator? CreateActivator()
@@ -378,5 +378,5 @@ internal sealed class GelTypeDeserializeInfo
 
     public static implicit operator TypeDeserializerFactory(GelTypeDeserializeInfo info) => info.Factory;
 
-    private delegate object ObjectActivator();
+    internal delegate object ObjectActivator();
 }
